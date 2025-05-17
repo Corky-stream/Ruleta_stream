@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ruleta de Streaming</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      min-height: 100vh;
+      margin: 0;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    form {
+      margin-bottom: 20px;
+      background: white;
+      padding: 15px 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgb(0 0 0 / 0.1);
+      width: 320px;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: 600;
+    }
+    input[type="text"], select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    select[multiple] {
+      height: 100px;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px;
+      width: 100%;
+      background: #007bff;
+      border: none;
+      color: white;
+      font-size: 1.1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover:not(:disabled) {
+      background: #0056b3;
+    }
+    button:disabled {
+      background: #a0a0a0;
+      cursor: default;
+    }
+    #message {
+      margin: 15px 0;
+      min-height: 1.2em;
+      font-weight: 700;
+      color: #d9534f;
+      text-align: center;
+    }
+    #wheelCanvas {
+      margin-top: 20px;
+      max-width: 90vw;
+      max-height: 400px;
+    }
+    #spinBtn {
+      margin-top: 15px;
+      padding: 12px 25px;
+      font-size: 1.2rem;
+      background: #28a745;
+      border: none;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      display: none;
+    }
+    #spinBtn:hover:not(:disabled) {
+      background: #19692c;
+    }
+    #resultText {
+      margin-top: 20px;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #333;
+      min-height: 2em;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎉 Ruleta de Streaming 🎉</h1>
+  <form id="userForm">
+    <label for="nombre">Nombre completo:</label>
+    <input type="text" id="nombre" required placeholder="Ej. Juan Pérez" />
+
+    <label for="plataformas">Plataformas compradas (selecciona mínimo 1):</label>
+    <select id="plataformas" multiple required>
+      <option value="Netflix">Netflix</option>
+      <option value="Disney+">Disney+</option>
+      <option value="HBO Max">HBO Max</option>
+      <option value="Prime Video">Prime Video</option>
+      <option value="Star+">Star+</option>
+      <option value="Paramount+">Paramount+</option>
+    </select>
+
+    <button type="submit">Comenzar</button>
+  </form>
+
+  <canvas id="wheelCanvas" width="400" height="400"></canvas>
+  <button id="spinBtn">Girar Ruleta 🎯</button>
+
+  <div id="resultText"></div>
+  <div id="message"></div>
+
+<script>
+(() => {
+  const maxAttempts = 1; // Cambia este número para definir giros permitidos por usuario
+  const wheelCanvas = document.getElementById('wheelCanvas');
+  const ctx = wheelCanvas.getContext('2d');
+  const spinBtn = document.getElementById('spinBtn');
+  const resultText = document.getElementById('resultText');
+  const message = document.getElementById('message');
+  const userForm = document.getElementById('userForm');
+  const nombreInput = document.getElementById('nombre');
+  const plataformasSelect = document.getElementById('plataformas');
+
+  let segments = [
+    "1 mes gratis de Netflix",
+    "50% de descuento",
+    "Gira otra vez",
+    "Acceso a 2x1",
+    "Mes de Disney+ de regalo",
+    "Lo sentimos, intenta el próximo mes",
+    "1 mes gratis de HBO Max",
+    "Acceso anticipado a estrenos",
+  ];
+
+  let colors = [
+    "#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0",
+    "#9966FF", "#FF9F40", "#C9CBCF", "#7ED957"
+  ];
+
+  let startAngle = 0;
+  let arc = (2 * Math.PI) / segments.length;
+  let spinTimeout = null;
+  let spinArcStart = 0;
+  let spinTime = 0;
+  let spinTimeTotal = 0;
+  let isSpinning = false;
+
+  function drawWheel() {
+    const outsideRadius = 150;
+    const textRadius = 120;
+    const insideRadius = 50;
+
+    ctx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
+
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 2;
+
+    for(let i = 0; i < segments.length; i++) {
+      let angle = startAngle + i * arc;
+      ctx.fillStyle = colors[i % colors.length];
+
+      ctx.beginPath();
+      ctx.moveTo(wheelCanvas.width / 2, wheelCanvas.height / 2);
+      ctx.arc(wheelCanvas.width / 2, wheelCanvas.height / 2, outsideRadius, angle, angle + arc, false);
+      ctx.lineTo(wheelCanvas.width / 2, wheelCanvas.height / 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.save();
+      ctx.fillStyle = "black";
+      ctx.translate(
+        wheelCanvas.width / 2 + Math.cos(angle + arc / 2) * textRadius,
+        wheelCanvas.height / 2 + Math.sin(angle + arc / 2) * textRadius
+      );
+      ctx.rotate(angle + arc / 2 + Math.PI / 2);
+      ctx.font = "bold 14px Arial";
+      ctx.fillText(segments[i], -ctx.measureText(segments[i]).width / 2, 0);
+      ctx.restore();
+    }
+
+    // Draw center circle
+    ctx.beginPath();
+    ctx.arc(wheelCanvas.width / 2, wheelCanvas.height / 2, insideRadius, 0, 2 * Math.PI, false);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#000000";
+    ctx.stroke();
+
+    // Draw arrow
+    ctx.fillStyle = "red";
+    ctx.beginPath();
+    ctx.moveTo(wheelCanvas.width / 2 - 10, wheelCanvas.height / 2 - (outsideRadius + 20));
+    ctx.lineTo(wheelCanvas.width / 2 + 10, wheelCanvas.height / 2 - (outsideRadius + 20));
+    ctx.lineTo(wheelCanvas.width / 2, wheelCanvas.height / 2 - (outsideRadius - 5));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function spin() {
+    if(isSpinning) return;
+
+    isSpinning = true;
+    resultText.textContent = "";
+    message.textContent = "";
+
+    spinArcStart = Math.random() * 10 + 10;
+    spinTime = 0;
+    spinTimeTotal = Math.random() * 3 + 4 * 1000;
+
+    rotateWheel();
+  }
+
+  function rotateWheel() {
+    spinTime += 30;
+    if(spinTime >= spinTimeTotal) {
+      stopRotateWheel();
+      return;
+    }
+    let spinAngle = spinArcStart - easeOut(spinTime, 0, spinArcStart, spinTimeTotal);
+    startAngle += (spinAngle * Math.PI / 180);
+    drawWheel();
+    spinTimeout = setTimeout(rotateWheel, 30);
+  }
+
+  function stopRotateWheel() {
+    clearTimeout(spinTimeout);
+    let degrees = startAngle * 180 / Math.PI + 90;
+    let arcd = arc * 180 / Math.PI;
+    let index = Math.floor((360 - (degrees % 360)) / arcd);
+    let selected = segments[index];
+
+    resultText.textContent = "🎉 ¡Ganaste: " + selected + "!";
+    isSpinning = false;
+    spinBtn.disabled = true;
+
+    // Guarda el intento en localStorage
+    let nombre = nombreInput.value.trim().toLowerCase();
+    let record = JSON.parse(localStorage.getItem("ruleta_giros")) || {};
+    record[nombre] = (record[nombre] || 0) + 1;
+    localStorage.setItem("ruleta_giros", JSON.stringify(record));
+  }
+
+  // Easing para el spin
+  function easeOut(t, b, c, d) {
+    let ts = (t /= d) * t;
+    let tc = ts * t;
+    return b + c * (tc + -3 * ts + 3 * t);
+  }
+
+  // Control de giros por usuario
+  function puedeGirar(nombre) {
+    let record = JSON.parse(localStorage.getItem("ruleta_giros")) || {};
+    return (record[nombre] || 0) < maxAttempts;
+  }
+
+  userForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    let nombre = nombreInput.value.trim().toLowerCase();
+    let plataformas = Array.from(plataformasSelect.selectedOptions).map(opt => opt.value);
+
+    if(nombre === "") {
+      message.textContent = "Por favor ingresa tu nombre.";
+      return;
+    }
+    if(plataformas.length === 0) {
+      message.textContent = "Selecciona al menos una plataforma.";
+      return;
+    }
+
+    if(!puedeGirar(nombre)) {
+      message.textContent = `Lo siento, ${nombreInput.value.trim()}, ya has usado tus ${maxAttempts} intento(s).`;
+      spinBtn.style.display = "none";
+      return;
+    }
+
+    // TODO: Puedes usar la info del usuario y plataformas para personalizar premios, aquí solo mostramos ruleta fija.
+
+    message.textContent = "";
+    spinBtn.style.display = "inline-block";
+    resultText.textContent = "";
+    spinBtn.disabled = false;
+  });
+
+  spinBtn.addEventListener('click', () => {
+    spin();
+  });
+
+  drawWheel();
+})();
+</script>
+</body>
+</html>
+
