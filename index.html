@@ -275,7 +275,7 @@
     let plataformas = Array.from(plataformasSelect.selectedOptions).map(opt => opt.value);
 
     if(nombre === "") {
-      message.textContent = "Por favor ingresa tu nombre.";
+      message.textContent = "Por favor ingresa el codigo que te proporcionamos.";
       return;
     }
     if(plataformas.length === 0) {
@@ -284,7 +284,7 @@
     }
 
     if(!puedeGirar(nombre)) {
-      message.textContent = `Lo siento, ${nombreInput.value.trim()}, ya has usado tus ${maxAttempts} intento(s).`;
+      message.textContent = `Lo siento, ya has usado tus ${maxAttempts} intento(s).`;
       spinBtn.style.display = "none";
       return;
     }
